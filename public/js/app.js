@@ -39,6 +39,14 @@ angular.module('cerebro', ['ngRoute', 'ngAnimate', 'ui.bootstrap'])
           templateUrl: 'index_settings/index.html',
           controller: 'IndexSettingsController'
         })
+        .when('/snapshot', {
+          templateUrl: 'snapshot/index.html',
+          controller: 'SnapshotController'
+        })
+        .when('/repository', {
+          templateUrl: 'repository/index.html',
+          controller: 'RepositoriesController'
+        })
         .otherwise({
             redirectTo: '/connect'
           }
@@ -856,6 +864,122 @@ angular.module('cerebro').controller('OverviewController', ['$scope', '$http',
 
   }]);
 
+angular.module('cerebro').controller('RepositoriesController', ['$scope',
+'RepositoriesDataService', 'AlertService', 'ModalService',
+  function($scope, RepositoriesDataService, AlertService, ModalService) {
+
+    $scope.name = '';
+    $scope.type = '';
+    $scope.settings = {};
+    $scope.repositories = [];
+    $scope.update = false;
+
+    $scope.$watch(
+      'name',
+      function(newValue, oldValue) {
+        var repositories = $scope.repositories.map(function(r) {
+          return r.name;
+        });
+        $scope.update = repositories.indexOf(newValue) !== -1;
+      },
+      true
+    );
+
+    $scope.load = function() {
+      RepositoriesDataService.load(
+        function(repositories) {
+          $scope.repositories = repositories;
+        },
+        function(error) {
+          AlertService.error('Error loading repositories', error);
+        }
+      );
+    };
+
+    $scope.create = function(name, type, settings) {
+      RepositoriesDataService.create(name, type, settings,
+        function(response) {
+          $scope.load();
+          AlertService.info('Repository successfully created', response);
+        },
+        function(error) {
+          AlertService.error('Error creating repository', error);
+        }
+      );
+    };
+
+    $scope.edit = function(name, type, settings) {
+      $scope.name = name;
+      $scope.type = type;
+      angular.copy(settings, $scope.settings);
+    };
+
+    $scope.remove = function(name) {
+      ModalService.promptConfirmation(
+        'Delete repository ' + name + '?',
+        function() {
+          RepositoriesDataService.delete(name,
+            function(data) {
+              $scope.load();
+              AlertService.success('Operation successfully executed', data);
+            },
+            function(data) {
+              AlertService.error('Operation failed', data);
+            }
+          );
+        }
+      );
+    };
+
+    $scope.save = function(name, type, settings) {
+      ModalService.promptConfirmation(
+        'Save settings for repository ' + name + '?',
+        function() {
+          RepositoriesDataService.create(name, type, settings,
+            function(response) {
+              $scope.load();
+              AlertService.info('Successfully updated', response);
+            },
+            function(error) {
+              AlertService.error('Error updating repository', error);
+            }
+          );
+        }
+      );
+    };
+
+    $scope.setup = function() {
+      $scope.load();
+    };
+
+  }]
+);
+
+angular.module('cerebro').factory('RepositoriesDataService', ['DataService',
+  function(DataService) {
+
+    this.load = function(success, error) {
+      DataService.send('/repositories', {}, success, error);
+    };
+
+    this.create = function(name, type, settings, success, error) {
+      var data = {
+        name: name,
+        type: type,
+        settings: settings
+      };
+      DataService.send('/repositories/create', data, success, error);
+    };
+
+    this.delete = function(name, success, error) {
+      DataService.send('/repositories/delete', {name: name}, success, error);
+    };
+
+    return this;
+
+  }
+]);
+
 angular.module('cerebro').controller('RestController', ['$scope', '$http',
   '$sce', 'DataService', 'AlertService', 'ModalService', 'AceEditorService',
   'ClipboardService',
@@ -928,6 +1052,14 @@ angular.module('cerebro').controller('RestController', ['$scope', '$http',
         }
       );
     };
+
+  }]
+);
+
+angular.module('cerebro').controller('SnapshotController', ['$scope',
+'DataService', 'AlertService', 'AceEditorService',
+  function($scope, $http, $sce, DataService, AlertService, ModalService,
+           AceEditorService) {
 
   }]
 );
@@ -1681,6 +1813,14 @@ function URLAutocomplete(mappings) {
   return this;
 
 }
+
+angular.module('cerebro').directive('ngPlainInclude', function() {
+  return {
+    templateUrl: function(elem, attr) {
+      return attr.file;
+    }
+  };
+});
 
 angular.module('cerebro').factory('AceEditorService', function() {
 

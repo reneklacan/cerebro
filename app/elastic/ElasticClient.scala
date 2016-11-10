@@ -2,7 +2,8 @@ package elastic
 
 import models.{ESAuth, ElasticServer}
 import play.api.Play.current
-import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
+import play.api.http
+import play.api.libs.json._
 import play.api.libs.ws.{WS, WSAuthScheme}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -188,6 +189,22 @@ trait ElasticClient {
   def getClusterSettings(target: ElasticServer) = {
     val path = s"/_cluster/settings?flat_settings=true&include_defaults=true"
     execute(s"${target.host}$path", "GET", None, target.authentication)
+  }
+
+  def getRepositories(target: ElasticServer) = {
+    val path = s"/_snapshot"
+    execute(s"${target.host}$path", "GET", None, target.authentication)
+  }
+
+  def createRepository(name: String, repoType: String, settings: JsValue, target: ElasticServer) = {
+    val path = s"/_snapshot/$name"
+    val data = Json.obj("type" -> JsString(repoType), "settings" -> settings).toString
+    execute(s"${target.host}$path", "PUT", Some(data), target.authentication)
+  }
+
+  def deleteRepository(name: String, target: ElasticServer) = {
+    val path = s"/_snapshot/$name"
+    execute(s"${target.host}$path", "DELETE", None, target.authentication)
   }
 
   def saveClusterSettings(settings: JsValue, target: ElasticServer) = {
